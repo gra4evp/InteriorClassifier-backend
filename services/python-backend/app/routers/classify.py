@@ -1,28 +1,18 @@
 import logging
 from pathlib import Path
-from fastapi import UploadFile, File, Form, HTTPException
+from fastapi import UploadFile, File, HTTPException, Depends
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from typing import List
-import json
 from datetime import datetime
 import torch
 from torchvision import transforms
 from PIL import Image
 import io
+from pydantic_models import ClassificationResult, ClassificationResponse
 from models.interior_classifier_EfficientNet_B3 import InteriorClassifier
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("api.log"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger(f"uvicorn.{__file__}")
 router = APIRouter()
 
 # Загрузка модели (замените на свою реализацию)
@@ -36,12 +26,30 @@ def load_model(checkpoint_path: Path):
     model.eval()
     return model
 
-# Инициализация модели
+# Dependency для получения модели
+def get_model():
+    try:
+        current_dir = Path(__file__).parent
+        models_dir = current_dir.parent / "models"
+        
+        # Ищем файл по шаблону ckpt*
+        checkpoint_files = list(models_dir.glob("ckpt*"))
+        if not checkpoint_files:
+            raise FileNotFoundError(f"No checkpoint files found in {models_dir}")
+        
+        # Берем первый найденный файл (можно добавить логику выбора конкретного файла)
+        checkpoint_path = checkpoint_files[0]
+        logger.info(f"Using checkpoint file: {checkpoint_path}")
+        
+        model = load_model(checkpoint_path=checkpoint_path)
+        return model
+    except Exception as e:
+        logger.error(f"Failed to load model: {str(e)}")
+        raise RuntimeError("Failed to initialize model")
+
+# Инициализация глобальных переменных
 try:
-    current_dir = Path(__file__).parent
-    models_dir = current_dir.parent / "models"
-    checkpoint_path = models_dir / "ckpt_epoch08.pth"
-    MODEL = load_model(checkpoint_path=checkpoint_path)
+    MODEL = get_model()
     CLASS_NAMES = ["A0", "A1", "B0", "B1", "C0", "C1", "D0", "D1"]
     logger.info("Model loaded successfully")
 except Exception as e:
@@ -69,7 +77,7 @@ def predict_image(image: Image.Image, model) -> dict:
             confidence, predicted = torch.max(probabilities, 1)
             
         return {
-            "class": CLASS_NAMES[predicted.item()],
+            "class_name": CLASS_NAMES[predicted.item()],
             "confidence": round(confidence.item(), 4)
         }
     except Exception as e:
@@ -77,33 +85,24 @@ def predict_image(image: Image.Image, model) -> dict:
         raise
 
 
-@router.post("/classify_batch", response_model=dict)
+@router.post("/classify_batch", response_model=ClassificationResponse)
 async def classify_batch(
     images: List[UploadFile] = File(...),
-    meta: str = Form(...)
+    model: InteriorClassifier = Depends(get_model)
 ):
     """
     Classify a batch of apartment images.
     
     Args:
         images: List of image files to classify
-        meta: JSON string with metadata (apartment_id, address)
+        model: Model instance injected via dependency
     
     Returns:
-        JSON with classification results for each image
+        ClassificationResponse with classification results for each image
     """
     start_time = datetime.now()
     
     try:
-        # Парсим метаданные
-        try:
-            meta_data = json.loads(meta)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON in meta field")
-        
-        if not all(key in meta_data for key in ["apartment_id", "address"]):
-            raise HTTPException(status_code=400, detail="Meta must contain apartment_id and address")
-        
         results = []
         
         for image_file in images:
@@ -113,33 +112,34 @@ async def classify_batch(
                 image = Image.open(io.BytesIO(image_data)).convert('RGB')
                 
                 # Предсказываем класс
-                prediction = predict_image(image, MODEL)
+                prediction = predict_image(image, model)
                 
-                results.append({
-                    "class": prediction["class"],
-                    "confidence": prediction["confidence"],
-                    "image_name": image_file.filename,
-                    "meta": meta_data
-                })
+                results.append(
+                    ClassificationResult(
+                        class_name=prediction["class_name"],
+                        confidence=prediction["confidence"],
+                        image_name=image_file.filename
+                    )
+                )
                 
             except Exception as e:
                 logger.error(f"Error processing image {image_file.filename}: {str(e)}")
-                results.append({
-                    "class": "error",
-                    "confidence": 0.0,
-                    "image_name": image_file.filename,
-                    "meta": meta_data,
-                    "error": str(e)
-                })
+                results.append(
+                    ClassificationResult(
+                        class_name="error",
+                        confidence=0.0,
+                        image_name=image_file.filename
+                    )
+                )
         
-        response = {"results": results}
+        response = ClassificationResponse(results=results)
         
         # Логирование запроса и ответа
         logger.info(f"Request processed in {(datetime.now() - start_time).total_seconds()} seconds")
-        logger.info(f"Request meta: {meta_data}")
+        logger.info(f"Processed {len(images)} images")
         logger.info(f"Response: {response}")
         
-        return JSONResponse(content=response)
+        return response
     
     except Exception as e:
         logger.error(f"Error in classify_batch: {str(e)}")

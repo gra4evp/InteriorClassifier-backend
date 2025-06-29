@@ -17,6 +17,18 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("api.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
 # Создаем FastAPI приложение
 app = FastAPI(
     title="Image Classification API",
