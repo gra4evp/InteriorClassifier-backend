@@ -1,0 +1,17 @@
+services:
+  python-backend:
+    container_name: python-backend
+    build:
+      context: ./services/python-backend
+      dockerfile: Dockerfile
+    environment:
+      - TZ=Europe/Moscow  # Временная зона
+      - APP_PORT=${APP_PORT} # Добавляем переменную для порта
+    ports:
+      - "8015:${APP_PORT}"
+    volumes:
+      - ./services/python-backend:/code:rw  # Для hot-reload кода
+    env_file:
+      - path: ./services/python-backend/.env
+        required: True
+    command: python3 app/main.py

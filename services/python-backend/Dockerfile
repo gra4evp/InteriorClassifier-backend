@@ -1,0 +1,58 @@
+# Используем базовый образ с CUDA
+# FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04
+
+# Используем базовый образ без CUDA
+# FROM python:3.12-slim
+
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV DEBIAN_FRONTEND=noninteractive LANG=C TZ=UTC
+ENV TERM=linux
+
+# install some basic utilities
+# Установка базовых утилит
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        python3-pip \
+        python3-dev \
+        python3-venv \
+        git \
+        ffmpeg \
+        libsm6 \
+        libxext6 \
+        libgl1 \
+        libxrender1 \
+        libx11-6 \
+        libxtst6 \
+        wget \
+        curl \
+        unzip \
+        ca-certificates \
+        fonts-liberation \
+        && \
+    rm -rf /var/lib/apt/lists/*
+
+# create venv
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# update pip
+RUN pip3 install --upgrade pip ;\
+    pip3 install setuptools
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем зависимости
+COPY requirements.txt .
+
+# Устанавливаем зависимости
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копируем исходный код
+COPY . /app/
+
+# Запускаем сервер
+# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# CMD ["python3", "main.py"]
