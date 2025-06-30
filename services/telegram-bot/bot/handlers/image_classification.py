@@ -2,10 +2,11 @@ import logging
 import asyncio
 from typing import List
 from aiogram import Dispatcher, Router, F
-from aiogram.types import Message, FSInputFile
+from aiogram.types import Message, FSInputFile, PhotoSize, Document
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from io import BytesIO
+import uuid
 
 from services.classification_service import ClassificationService
 from utils.file_validator import validate_image_file
@@ -77,13 +78,24 @@ async def process_image(message: Message, file):
         # Создаем BytesIO объект
         file_io = BytesIO(file_bytes)
         
+        # Определяем имя файла в зависимости от типа
+        if isinstance(file, PhotoSize):
+            # Для фотографий генерируем имя файла
+            filename = f"photo_{uuid.uuid4().hex[:8]}.jpg"
+        elif isinstance(file, Document):
+            # Для документов используем оригинальное имя
+            filename = file.file_name or "document.jpg"
+        else:
+            # Для других типов файлов
+            filename = f"file_{uuid.uuid4().hex[:8]}.jpg"
+        
         # Создаем сервис для классификации
         classification_service = ClassificationService()
         
         # Отправляем на классификацию
         result = await classification_service.classify_single_image(
             file_io, 
-            file.file_name or "image.jpg"
+            filename
         )
         
         # Форматируем и отправляем результат
