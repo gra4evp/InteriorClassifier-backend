@@ -37,12 +37,28 @@ def get_classes_info_keyboard() -> InlineKeyboardMarkup:
     """Инлайн клавиатура с информацией о классах"""
     keyboard = [
         [
-            InlineKeyboardButton(text="🏢 Классы A", callback_data="class_info_a"),
-            InlineKeyboardButton(text="🏠 Классы B", callback_data="class_info_b")
+            InlineKeyboardButton(text="🧱 A0 [Unfinished | Без отделки]", callback_data="class_label_A0")
         ],
         [
-            InlineKeyboardButton(text="🏘️ Классы C", callback_data="class_info_c"),
-            InlineKeyboardButton(text="🏚️ Классы D", callback_data="class_info_d")
+            InlineKeyboardButton(text="🏚️ A1 [Major repair | Капитальный ремонт]", callback_data="class_label_A1")
+        ],
+        [
+            InlineKeyboardButton(text="🏠 B0 [WhiteBox | Под чистовую]", callback_data="class_label_B0")
+        ],
+        [
+            InlineKeyboardButton(text="🎨 B1 [Cosmetic repair | Косметический ремонт]", callback_data="class_label_B1")
+        ],
+        [
+            InlineKeyboardButton(text="☑️ C0 [Finished | Чистовая]", callback_data="class_label_C0")
+        ],
+        [
+            InlineKeyboardButton(text="🏠 C1 [Excellent | Отличное состояние]", callback_data="class_label_C1")
+        ],
+        [
+            InlineKeyboardButton(text="✨ D0 [Euro-style | Евроремонт]", callback_data="class_label_D0")
+        ],
+        [
+            InlineKeyboardButton(text="💎 D1 [Luxury | Люкс]", callback_data="class_label_D1")
         ]
     ]
     
