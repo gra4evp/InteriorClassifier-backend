@@ -36,17 +36,17 @@ def format_single_result(result: Dict[str, Any]) -> str:
     class_emoji = get_class_emoji(class_name)
     
     # Форматируем вероятности
-    prob_text = format_probabilities(probabilities)
+    prob_text = format_probabilities(probabilities, sorted_by_probability=True)
     
-    return f"""
-🏠 <b>Результат классификации</b>
-
-📸 <b>Файл:</b> {image_name}
-{class_emoji} <b>Класс интерьера:</b> <code>{class_name}</code>
-
-📊 <b>Распределение вероятностей:</b>
-{prob_text}
-    """.strip()
+    text_lines = [
+        f"🏠 <b>Результат классификации</b>\n",
+        f"📸 <b>Файл:</b> {image_name}",
+        f"{class_emoji} <b>Класс интерьера:</b> <code>{class_name}</code>\n\n",
+        f"📊 <b>Распределение вероятностей:</b>",
+        prob_text
+    ]
+    
+    return "\n".join(text_lines)
 
 
 def format_multiple_results(results: List[Dict[str, Any]]) -> str:
@@ -69,19 +69,22 @@ def format_multiple_results(results: List[Dict[str, Any]]) -> str:
 def get_class_emoji(class_name: str) -> str:
     """Получение эмодзи для класса интерьера"""
     emoji_map = {
-        'A0': '🏢',  # Элитный
-        'A1': '🏢',
-        'B0': '🏠',  # Стандартный
-        'B1': '🏠',
-        'C0': '🏘️',  # Эконом
-        'C1': '🏘️',
-        'D0': '🏚️',  # Базовый
-        'D1': '🏚️',
+        'A0': '🧱',
+        'A1': '🏚️',
+        'B0': '◻️',
+        'B1': '🎨',
+        'C0': '☑️',
+        'C1': '🏠',
+        'D0': '✨',
+        'D1': '💎',
     }
     return emoji_map.get(class_name, '🏠')
 
 
-def format_probabilities(probabilities: List[float]) -> str:
+def format_probabilities(
+        probabilities: List[float],
+        sorted_by_probability: bool = False
+    ) -> str:
     """Форматирование списка вероятностей"""
     class_names = ['A0', 'A1', 'B0', 'B1', 'C0', 'C1', 'D0', 'D1']
     
@@ -90,7 +93,8 @@ def format_probabilities(probabilities: List[float]) -> str:
     
     # Создаем список кортежей (класс, вероятность) и сортируем по убыванию
     class_probs = list(zip(class_names, probabilities))
-    class_probs.sort(key=lambda x: x[1], reverse=True)
+    if sorted_by_probability:
+        class_probs.sort(key=lambda x: x[1], reverse=True)
     
     formatted_lines = []
     for class_name, prob in class_probs:
@@ -98,9 +102,10 @@ def format_probabilities(probabilities: List[float]) -> str:
         percentage = prob * 100
         bar_length = int(percentage / 5)  # 5% = 1 символ
         bar = '█' * bar_length + '░' * (20 - bar_length)
-        
+        # Добавляем пробел перед процентом, если меньше 10 для выравнивания
+        percent_str = f" {percentage:.1f}%" if percentage < 10 else f"{percentage:.1f}%"
         formatted_lines.append(
-            f"{emoji} {class_name}: {percentage:.1f}% {bar}"
+            f"{emoji} {class_name}: {percent_str} {bar}"
         )
     
     return "\n".join(formatted_lines) 

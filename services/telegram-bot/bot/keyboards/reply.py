@@ -43,7 +43,7 @@ def get_classes_info_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🏚️ A1 [Major repair | Капитальный ремонт]", callback_data="class_label_A1")
         ],
         [
-            InlineKeyboardButton(text="🏠 B0 [WhiteBox | Под чистовую]", callback_data="class_label_B0")
+            InlineKeyboardButton(text="◻️ B0 [WhiteBox | Под чистовую]", callback_data="class_label_B0")
         ],
         [
             InlineKeyboardButton(text="🎨 B1 [Cosmetic repair | Косметический ремонт]", callback_data="class_label_B1")
@@ -52,7 +52,7 @@ def get_classes_info_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="☑️ C0 [Finished | Чистовая]", callback_data="class_label_C0")
         ],
         [
-            InlineKeyboardButton(text="🏠 C1 [Excellent | Отличное состояние]", callback_data="class_label_C1")
+            InlineKeyboardButton(text="🏠 C1 [Good | Хорошее состояние]", callback_data="class_label_C1")
         ],
         [
             InlineKeyboardButton(text="✨ D0 [Euro-style | Евроремонт]", callback_data="class_label_D0")
