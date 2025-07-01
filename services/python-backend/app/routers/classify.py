@@ -74,11 +74,13 @@ def predict_image(image: Image.Image, model) -> dict:
         with torch.no_grad():
             outputs = model(image_tensor)
             probabilities = torch.nn.functional.softmax(outputs, dim=1)
+            probabilities_list = [round(float(p), 6) for p in probabilities[0]] 
             confidence, predicted = torch.max(probabilities, 1)
             
         return {
             "class_name": CLASS_NAMES[predicted.item()],
-            "confidence": round(confidence.item(), 4)
+            "probabilities": probabilities_list,
+            #"confidence": round(confidence.item(), 4)
         }
     except Exception as e:
         logger.error(f"Prediction error: {str(e)}")
@@ -117,7 +119,8 @@ async def classify_batch(
                 results.append(
                     ClassificationResult(
                         class_name=prediction["class_name"],
-                        confidence=prediction["confidence"],
+                        #confidence=prediction["confidence"],
+                        probabilities=prediction["probabilities"],
                         image_name=image_file.filename
                     )
                 )
