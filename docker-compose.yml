@@ -3,7 +3,7 @@ services:
     container_name: python-backend
     build:
       context: ./services/python-backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile_cpu
     environment:
       - TZ=Europe/Moscow  # Временная зона
       - APP_PORT=${APP_PORT} # Добавляем переменную для порта
@@ -15,6 +15,13 @@ services:
       - path: ./services/python-backend/.env
         required: True
     command: python3 app/main.py
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: "nvidia"
+    #           count: all
+    #           capabilities: [ "gpu" ]
 
   telegram-bot:
     container_name: telegram-bot
