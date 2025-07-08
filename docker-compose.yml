@@ -10,7 +10,7 @@ services:
     ports:
       - "8015:${APP_PORT}"
     volumes:
-      - ./services/python-backend:/code:rw  # Для hot-reload кода
+      - ./services/python-backend/app:/app/app:rw  # Для hot-reload кода
     env_file:
       - path: ./services/python-backend/.env
         required: True

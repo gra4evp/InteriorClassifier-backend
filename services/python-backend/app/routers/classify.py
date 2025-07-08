@@ -6,85 +6,54 @@ from fastapi.responses import JSONResponse
 from typing import List
 from datetime import datetime
 import torch
-from torchvision import transforms
 from PIL import Image
 import io
-from pydantic_models import ClassificationResult, ClassificationResponse
-from models.interior_classifier_EfficientNet_B3 import InteriorClassifier
+from pydantic_models import ClassificationResult, ClassificationResponse, MetaInfo
+from models.interior_classifier_EfficientNet_B3 import InteriorClassifier, load_model, get_inference_transforms, get_model
+
 
 logger = logging.getLogger(f"uvicorn.{__file__}")
 router = APIRouter()
 
-# Загрузка модели (замените на свою реализацию)
-def load_model(checkpoint_path: Path):
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Model file {checkpoint_path} not found")
-    
-    checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
-    model = InteriorClassifier(num_classes=8)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()
-    return model
-
-# Dependency для получения модели
-def get_model():
-    try:
-        current_dir = Path(__file__).parent
-        models_dir = current_dir.parent / "models"
-        
-        # Ищем файл по шаблону ckpt*
-        checkpoint_files = list(models_dir.glob("ckpt*"))
-        if not checkpoint_files:
-            raise FileNotFoundError(f"No checkpoint files found in {models_dir}")
-        
-        # Берем первый найденный файл (можно добавить логику выбора конкретного файла)
-        checkpoint_path = checkpoint_files[0]
-        logger.info(f"Using checkpoint file: {checkpoint_path}")
-        
-        model = load_model(checkpoint_path=checkpoint_path)
-        return model
-    except Exception as e:
-        logger.error(f"Failed to load model: {str(e)}")
-        raise RuntimeError("Failed to initialize model")
 
 # Инициализация глобальных переменных
 try:
-    MODEL = get_model()
+    MODEL = get_model()  # инициализируем при старте первый раз
     CLASS_NAMES = ["A0", "A1", "B0", "B1", "C0", "C1", "D0", "D1"]
+    MODEL_VERSION = "1.0.0"  # Можно получить из checkpoint или задать явно
+    BACKBONE_NAME = "EfficientNet-B3"
     logger.info("Model loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load model: {str(e)}")
     raise RuntimeError("Failed to initialize model")
 
-# Трансформации для изображения (адаптируйте под вашу модель)
-transform = transforms.Compose([
-    transforms.Resize((380, 380)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
 
-
-def predict_image(image: Image.Image, model) -> dict:
-    """Функция для предсказания класса изображения"""
-    try:
-        # Применяем трансформации
-        image_tensor = transform(image).unsqueeze(0)
-        
-        # Предсказание
-        with torch.no_grad():
-            outputs = model(image_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            probabilities_list = [round(float(p), 6) for p in probabilities[0]] 
-            confidence, predicted = torch.max(probabilities, 1)
-            
-        return {
-            "class_name": CLASS_NAMES[predicted.item()],
-            "probabilities": probabilities_list,
-            #"confidence": round(confidence.item(), 4)
-        }
-    except Exception as e:
-        logger.error(f"Prediction error: {str(e)}")
-        raise
+def classify_images_batch(
+        images: list[Image.Image],
+        image_names: list[str],
+        model: InteriorClassifier
+    ) -> list[ClassificationResult]:
+    transforms = get_inference_transforms(img_size=380)
+    tensors = [transforms(img).unsqueeze(0) for img in images]
+    batch_tensor = torch.cat(tensors, dim=0)
+    with torch.no_grad():
+        outputs = model(batch_tensor)
+        probabilities = torch.nn.functional.softmax(outputs, dim=1)
+        results = []
+        for i in range(len(images)):
+            probs = probabilities[i]
+            confidences = {CLASS_NAMES[j]: round(float(probs[j]), 6) for j in range(len(CLASS_NAMES))}
+            top_confidence, predicted = torch.max(probs, 0)
+            results.append(
+                ClassificationResult(
+                    predicted_class=CLASS_NAMES[predicted.item()],
+                    top_confidence=round(float(top_confidence.item()), 6),
+                    class_confidences=confidences,
+                    image_name=image_names[i],
+                    error=None
+                )
+            )
+    return results
 
 
 @router.post("/classify_batch", response_model=ClassificationResponse)
@@ -92,58 +61,55 @@ async def classify_batch(
     images: List[UploadFile] = File(...),
     model: InteriorClassifier = Depends(get_model)
 ):
-    """
-    Classify a batch of apartment images.
-    
-    Args:
-        images: List of image files to classify
-        model: Model instance injected via dependency
-    
-    Returns:
-        ClassificationResponse with classification results for each image
-    """
     start_time = datetime.now()
-    
-    try:
-        results = []
-        
-        for image_file in images:
-            try:
-                # Читаем изображение
-                image_data = await image_file.read()
-                image = Image.open(io.BytesIO(image_data)).convert('RGB')
-                
-                # Предсказываем класс
-                prediction = predict_image(image, model)
-                
-                results.append(
-                    ClassificationResult(
-                        class_name=prediction["class_name"],
-                        #confidence=prediction["confidence"],
-                        probabilities=prediction["probabilities"],
-                        image_name=image_file.filename
-                    )
+    image_objs = []
+    image_names = []
+    error_results = []
+    for image_file in images:
+        try:
+            image_data = await image_file.read()
+            image = Image.open(io.BytesIO(image_data)).convert('RGB')
+            image_objs.append(image)
+            image_names.append(image_file.filename)
+        except Exception as e:
+            err_msg = str(e)
+            if "cannot identify image file" in err_msg:
+                user_msg = (
+                    "File is not a supported image format. "
+                    "Supported formats: jpg, jpeg, png, bmp, gif, tiff, webp, ico."
                 )
-                
-            except Exception as e:
-                logger.error(f"Error processing image {image_file.filename}: {str(e)}")
-                results.append(
-                    ClassificationResult(
-                        class_name="error",
-                        confidence=0.0,
-                        image_name=image_file.filename
-                    )
+            else:
+                user_msg = err_msg
+            error_results.append(
+                ClassificationResult(
+                    predicted_class=None,
+                    top_confidence=None,
+                    class_confidences={},
+                    image_name=image_file.filename,
+                    error=user_msg
                 )
-        
-        response = ClassificationResponse(results=results)
-        
-        # Логирование запроса и ответа
-        logger.info(f"Request processed in {(datetime.now() - start_time).total_seconds()} seconds")
-        logger.info(f"Processed {len(images)} images")
-        logger.info(f"Response: {response}")
-        
-        return response
+            )
+            logger.error(f"Error processing image {image_file.filename}: {err_msg}")
     
-    except Exception as e:
-        logger.error(f"Error in classify_batch: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    batch_results = []
+    if image_objs:
+        try:
+            batch_results = classify_images_batch(image_objs, image_names, model)
+        except Exception as e:
+            logger.error(f"Error during batch model inference: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Model inference error: {str(e)}")
+    
+    results = batch_results + error_results
+    total_processing_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+    response = ClassificationResponse(
+        results=results,
+        meta=MetaInfo(
+            total_images=len(images),
+            total_processing_time_ms=total_processing_time_ms,
+            model_version=MODEL_VERSION,
+            backbone_name=BACKBONE_NAME
+        )
+    )
+    logger.info(f"Request processed in {total_processing_time_ms} ms")
+    logger.info(f"Processed {len(images)} images")
+    return response
