@@ -103,4 +103,4 @@ class ClassificationService:
             raise Exception("Ошибка сети при обращении к серверу")
         except Exception as e:
             logger.error(f"Unexpected error in classification service: {e}")
-            raise 
+            raise

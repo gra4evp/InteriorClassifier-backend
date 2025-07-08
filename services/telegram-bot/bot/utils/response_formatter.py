@@ -28,20 +28,20 @@ def format_classification_result(result: Dict[str, Any]) -> str:
 
 def format_single_result(result: Dict[str, Any]) -> str:
     """Форматирование результата для одного изображения"""
-    class_name = result.get('class_name', 'Unknown')
-    probabilities = result.get('probabilities', [])
+    predicted_class = result.get('predicted_class', 'Unknown')
+    class_confidences = result.get('class_confidences', [])
     image_name = result.get('image_name', 'Изображение')
     
     # Определяем эмодзи для класса
-    class_emoji = get_class_emoji(class_name)
+    class_emoji = get_class_emoji(predicted_class)
     
     # Форматируем вероятности
-    prob_text = format_probabilities(probabilities, sorted_by_probability=True)
+    prob_text = format_probabilities(class_confidences, sorted_by_probability=True)
     
     text_lines = [
         f"🏠 <b>Результат классификации</b>\n",
         f"📸 <b>Файл:</b> {image_name}",
-        f"{class_emoji} <b>Класс интерьера:</b> <code>{class_name}</code>\n\n",
+        f"{class_emoji} <b>Класс интерьера:</b> <code>{predicted_class}</code>\n\n",
         f"📊 <b>Распределение вероятностей:</b>",
         prob_text
     ]
@@ -82,7 +82,7 @@ def get_class_emoji(class_name: str) -> str:
 
 
 def format_probabilities(
-        probabilities: List[float],
+        probabilities: dict[str, float],
         sorted_by_probability: bool = False
     ) -> str:
     """Форматирование списка вероятностей"""
@@ -92,7 +92,7 @@ def format_probabilities(
         return "❌ Ошибка: неверное количество классов"
     
     # Создаем список кортежей (класс, вероятность) и сортируем по убыванию
-    class_probs = list(zip(class_names, probabilities))
+    class_probs = list(probabilities.items())
     if sorted_by_probability:
         class_probs.sort(key=lambda x: x[1], reverse=True)
     
@@ -108,4 +108,4 @@ def format_probabilities(
             f"{emoji} {class_name}: {percent_str} {bar}"
         )
     
-    return "\n".join(formatted_lines) 
+    return "\n".join(formatted_lines)
