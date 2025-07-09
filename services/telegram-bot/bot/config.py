@@ -39,3 +39,15 @@ class Config:
             raise ValueError("BACKEND_URL не установлен")
         
         return True 
+
+# Глобальный объект с информацией о классах интерьера
+CLASS_INFO = {
+    'A0': {'emoji': '🧱', 'description': 'Unfinished | Без отделки'},
+    'A1': {'emoji': '🏚️', 'description': 'Major repair | Капитальный ремонт'},
+    'B0': {'emoji': '◻️', 'description': 'WhiteBox | Под чистовую'},
+    'B1': {'emoji': '🎨', 'description': 'Cosmetic repair | Косметический ремонт'},
+    'C0': {'emoji': '☑️', 'description': 'Finished | Чистовая'},
+    'C1': {'emoji': '🏠', 'description': 'Good | Хорошее состояние'},
+    'D0': {'emoji': '✨', 'description': 'Euro-style | Евроремонт'},
+    'D1': {'emoji': '💎', 'description': 'Luxury | Люкс'},
+} 

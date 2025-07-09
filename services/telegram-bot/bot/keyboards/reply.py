@@ -1,4 +1,10 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from config import CLASS_INFO
+from aiogram.types import (
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
 
 
 def get_main_keyboard() -> ReplyKeyboardMarkup:
@@ -35,31 +41,11 @@ def get_cancel_keyboard() -> ReplyKeyboardMarkup:
 
 def get_classes_info_keyboard() -> InlineKeyboardMarkup:
     """Инлайн клавиатура с информацией о классах"""
-    keyboard = [
-        [
-            InlineKeyboardButton(text="🧱 A0 [Unfinished | Без отделки]", callback_data="class_label_A0")
-        ],
-        [
-            InlineKeyboardButton(text="🏚️ A1 [Major repair | Капитальный ремонт]", callback_data="class_label_A1")
-        ],
-        [
-            InlineKeyboardButton(text="◻️ B0 [WhiteBox | Под чистовую]", callback_data="class_label_B0")
-        ],
-        [
-            InlineKeyboardButton(text="🎨 B1 [Cosmetic repair | Косметический ремонт]", callback_data="class_label_B1")
-        ],
-        [
-            InlineKeyboardButton(text="☑️ C0 [Finished | Чистовая]", callback_data="class_label_C0")
-        ],
-        [
-            InlineKeyboardButton(text="🏠 C1 [Good | Хорошее состояние]", callback_data="class_label_C1")
-        ],
-        [
-            InlineKeyboardButton(text="✨ D0 [Euro-style | Евроремонт]", callback_data="class_label_D0")
-        ],
-        [
-            InlineKeyboardButton(text="💎 D1 [Luxury | Люкс]", callback_data="class_label_D1")
-        ]
-    ]
-    
-    return InlineKeyboardMarkup(inline_keyboard=keyboard) 
+    keyboard = []
+    for class_label, info in CLASS_INFO.items():
+        button = InlineKeyboardButton(
+            text=f"{info['emoji']} {class_label} [{info['description']}]",
+            callback_data=f"class_label_{class_label}"
+        )
+        keyboard.append([button])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

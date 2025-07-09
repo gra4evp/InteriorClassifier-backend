@@ -1,7 +1,8 @@
-from typing import Dict, Any, List
+from typing import Any
+from config import CLASS_INFO
 
 
-def format_classification_result(result: Dict[str, Any]) -> str:
+def format_classification_result(result: dict[str, Any]) -> str:
     """
     Форматирование результата классификации для отправки пользователю
     
@@ -18,22 +19,30 @@ def format_classification_result(result: Dict[str, Any]) -> str:
     
 
 
-def format_single_result(result: Dict[str, Any]) -> str:
+def format_single_result(result: dict[str, Any]) -> str:
     """Форматирование результата для одного изображения"""
     predicted_class = result.get('predicted_class', 'Unknown')
     class_confidences = result.get('class_confidences', [])
+    top_confidence = result.get('top_confidence', 'Unknown')
     image_name = result.get('image_name', 'Изображение')
     
-    # Определяем эмодзи для класса
-    class_emoji = get_class_emoji(predicted_class)
+    # Определяем эмодзи и описание для класса
+    class_info = CLASS_INFO.get(predicted_class, {'emoji': '🏠', 'description': 'Unknown'})
+    class_emoji = class_info['emoji']
+    class_description = class_info['description']
     
     # Форматируем вероятности
-    prob_text = format_probabilities(class_confidences, sorted_by_probability=True)
-    
+    prob_text = format_probabilities(
+        class_confidences,
+        sorted_by_probability=False
+    )
+    if top_confidence != 'Unknown':
+        top_confidence = f"{top_confidence * 100:.1f}%"
     text_lines = [
         f"🏠 <b>Результат классификации</b>\n",
         f"📸 <b>Файл:</b> {image_name}",
-        f"{class_emoji} <b>Класс интерьера:</b> <code>{predicted_class}</code>\n\n",
+        f"{class_emoji} <b>Класс интерьера:</b> <code>{predicted_class}</code> — {top_confidence}",
+        f"ℹ️ <b>Описание:</b> [{class_description}]\n",
         f"📊 <b>Распределение вероятностей:</b>",
         prob_text
     ]
@@ -41,44 +50,12 @@ def format_single_result(result: Dict[str, Any]) -> str:
     return "\n".join(text_lines)
 
 
-def format_multiple_results(results: List[Dict[str, Any]]) -> str:
-    """Форматирование результатов для нескольких изображений"""
-    header = f"🏠 <b>Результаты классификации ({len(results)} изображений)</b>\n\n"
-    
-    formatted_results = []
-    for i, result in enumerate(results, 1):
-        class_name = result.get('class_name', 'Unknown')
-        image_name = result.get('image_name', f'Изображение {i}')
-        class_emoji = get_class_emoji(class_name)
-        
-        formatted_results.append(
-            f"{i}. {class_emoji} <b>{image_name}</b> → <code>{class_name}</code>"
-        )
-    
-    return header + "\n".join(formatted_results)
-
-
-def get_class_emoji(class_name: str) -> str:
-    """Получение эмодзи для класса интерьера"""
-    emoji_map = {
-        'A0': '🧱',
-        'A1': '🏚️',
-        'B0': '◻️',
-        'B1': '🎨',
-        'C0': '☑️',
-        'C1': '🏠',
-        'D0': '✨',
-        'D1': '💎',
-    }
-    return emoji_map.get(class_name, '🏠')
-
-
 def format_probabilities(
         probabilities: dict[str, float],
         sorted_by_probability: bool = False
     ) -> str:
     """Форматирование списка вероятностей"""
-    class_names = ['A0', 'A1', 'B0', 'B1', 'C0', 'C1', 'D0', 'D1']
+    class_names = list(CLASS_INFO.keys())
     
     if len(probabilities) != len(class_names):
         return "❌ Ошибка: неверное количество классов"
@@ -90,9 +67,10 @@ def format_probabilities(
     
     formatted_lines = []
     for class_name, prob in class_probs:
-        emoji = get_class_emoji(class_name)
+        info = CLASS_INFO.get(class_name, {'emoji': '🏠'})
+        emoji = info['emoji']
         percentage = prob * 100
-        bar_length = int(percentage / 5)  # 5% = 1 символ
+        bar_length = round(percentage / 5)  # 5% = 1 символ
         bar = '█' * bar_length + '░' * (20 - bar_length)
         # Добавляем пробел перед процентом, если меньше 10 для выравнивания
         percent_str = f" {percentage:.1f}%" if percentage < 10 else f"{percentage:.1f}%"
