@@ -45,7 +45,11 @@ class LoggingMiddleware(BaseMiddleware):
 
 
 class ThrottlingMiddleware(BaseMiddleware):
-    """Middleware для ограничения частоты запросов"""
+    """
+    Middleware to limit the frequency of user requests (anti-flood).
+    - For single messages: applies throttling per user.
+    - For media groups (albums): throttling is applied only to the first message of the group; all messages in the group are allowed without delay.
+    """
     
     def __init__(self, rate_limit: float = 0.5):
         self.rate_limit = rate_limit
@@ -60,8 +64,16 @@ class ThrottlingMiddleware(BaseMiddleware):
     ) -> Any:
         user_id = event.from_user.id
         current_time = time.time()
-        
-        # Проверяем, не слишком ли часто пользователь отправляет запросы
+
+        # If this is part of a media group (album), apply throttling only to the first message in the group.
+        if isinstance(event, Message) and event.media_group_id is not None:
+            group_key = f"{user_id}:{event.media_group_id}"
+            if group_key not in self.last_request:
+                self.last_request[group_key] = current_time
+            # Allow all messages in the group without additional throttling
+            return await handler(event, data)
+
+        # Standard throttling for single (non-group) messages
         if user_id in self.last_request:
             time_passed = current_time - self.last_request[user_id]
             if time_passed < self.rate_limit:

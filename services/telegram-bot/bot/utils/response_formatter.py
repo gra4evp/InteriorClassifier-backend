@@ -11,19 +11,11 @@ def format_classification_result(result: Dict[str, Any]) -> str:
     Returns:
         Отформатированная строка
     """
-    if not result or 'results' not in result:
+    if not result:
         return "❌ Ошибка: неверный формат ответа от сервера"
+
+    return format_single_result(result)
     
-    results = result['results']
-    if not results:
-        return "❌ Ошибка: нет результатов классификации"
-    
-    # Если одно изображение
-    if len(results) == 1:
-        return format_single_result(results[0])
-    
-    # Если несколько изображений
-    return format_multiple_results(results)
 
 
 def format_single_result(result: Dict[str, Any]) -> str:

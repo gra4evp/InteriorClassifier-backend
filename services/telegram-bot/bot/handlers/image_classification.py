@@ -2,8 +2,6 @@ import logging
 from aiogram import Dispatcher, Router, F
 from aiogram.types import Message, PhotoSize, Document
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
-from aiogram.utils.media_group import m
 from io import BytesIO
 import uuid
 
@@ -12,9 +10,11 @@ from utils.file_validator import validate_image_file
 from utils.response_formatter import format_classification_result
 from keyboards.reply import get_main_keyboard
 from config import Config
+from middlewares.album import AlbumMiddleware
 
 logger = logging.getLogger(__name__)
 router = Router()
+router.message.middleware(AlbumMiddleware())
 
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -117,69 +117,69 @@ async def cmd_classify(message: Message):
 def is_supported(filename: str) -> bool:
     return any(filename.lower().endswith(ext) for ext in SUPPORTED_EXTENSIONS)
 
-
-@router.message(F.media_group_id | F.photo | F.document)
-async def handle_images(message: Message):
-
-    # Отправляем сообщение о начале обработки
-    processing_msg = await message.answer("🔄 Обрабатываю изображение...")
-
-    files = []
-    file_names = []
-    bot = message.bot
-
-    # 1. Если это альбом (media group)
-    if message.media_group_id is not None:
-        # Получаем все сообщения из альбома
-        
-        media_group = await bot.get_media_group(message.chat.id, message.message_id)
-        for idx, msg in enumerate(media_group, start=1):
-            if msg.photo:
-                file = msg.photo[-1]
-                filename = f"photo_{idx}.jpg"
-            elif msg.document and is_supported(msg.document.file_name):
-                file = msg.document
-                filename = msg.document.file_name
-            else:
-                continue
-            file_info = await bot.get_file(file.file_id)
-            file_data = await bot.download_file(file_info.file_path)
-            file_bytes = file_data.read()
-            files.append(BytesIO(file_bytes))
-            file_names.append(filename)
+async def extract_file_and_name(msg: Message, image_filename: str = None) -> tuple[BytesIO, str] | None:
+    """Extracts file and filename from a message if it's a supported image.
+    For photos, uses image_filename if provided. For documents, always uses the original filename."""
+    if msg.photo:
+        file = msg.photo[-1]
+        filename = image_filename or f"photo_{file.file_id}.jpg"
+    elif msg.document and is_supported(msg.document.file_name):
+        file = msg.document
+        filename = msg.document.file_name  # Always use original name for documents
     else:
-        # Одиночное фото или документ
-        if message.photo:
-            file = message.photo[-1]
-            filename = f"photo.jpg"
-        elif message.document and is_supported(message.document.file_name):
-            file = message.document
-            filename = message.document.file_name
-        else:
-            await processing_msg.edit_text("❌ Неподдерживаемый формат файла. Поддерживаются JPG, JPEG, PNG, WEBP.")
-            return
-        file_info = await bot.get_file(file.file_id)
-        file_data = await bot.download_file(file_info.file_path)
-        file_bytes = file_data.read()
-        files.append(BytesIO(file_bytes))
-        file_names.append(filename)
+        return None
+    file_info = await msg.bot.get_file(file.file_id)
+    file_data = await msg.bot.download_file(file_info.file_path)
+    file_bytes = file_data.read()
+    return BytesIO(file_bytes), filename
 
-    if not files:
-        await processing_msg.edit_text("❌ Не удалось найти подходящие изображения в сообщении.")
-        return
-
-    # 2. Отправляем батч на backend
+async def process_images(message: Message, files: list[tuple[BytesIO, str]]):
+    """Sends images for classification and returns results to the user."""
+    processing_msg = await message.answer("🔄 Обрабатываю изображение(я)...")
     classification_service = ClassificationService()
     try:
-        result = await classification_service.classify_multiple_images(list(zip(files, file_names)))
+        result = await classification_service.classify_multiple_images(files)
     except Exception as e:
         logger.error(f"Error during classification: {e}")
         await processing_msg.edit_text("❌ Произошла ошибка при классификации. Попробуйте позже.")
         return
+    # Format and send results
+    for res in result.get("results", []):
+        formatted = format_classification_result(res)
+        await message.answer(formatted, parse_mode="HTML")
+    await processing_msg.delete()
 
-    # 3. Форматируем и отправляем результат
-    formatted = format_classification_result(result)
-    await processing_msg.edit_text(formatted, parse_mode="HTML")
+@router.message(F.photo | F.document)
+async def handle_images(message: Message, album: list[Message] = None):
+    """
+    Universal handler for single and batch images.
+    If album is not None, it's a batch; otherwise, it's a single image.
+    """
+    files = []
+
+    if album:
+        # Batch of images (album)
+        for idx, msg in enumerate(album, start=1):
+            if msg.photo:
+                result = await extract_file_and_name(msg, image_filename=f"image_{idx}.jpg")
+            else:
+                result = await extract_file_and_name(msg)
+            if result:
+                files.append(result)
+        if not files:
+            await message.answer("❌ Не удалось найти подходящие изображения в альбоме.")
+            return
+        await process_images(message, files)
+    else:
+        # Single image
+        if message.photo:
+            result = await extract_file_and_name(message, image_filename="image.jpg")
+        else:
+            result = await extract_file_and_name(message)
+        if not result:
+            await message.answer("❌ Неподдерживаемый формат файла. Поддерживаются JPG, JPEG, PNG, WEBP.")
+            return
+        await process_images(message, [result])
 
 
 def register_image_handlers(dp: Dispatcher) -> None:

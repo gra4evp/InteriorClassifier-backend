@@ -36,3 +36,4 @@ services:
       - path: ./services/telegram-bot/.env
         required: True
     restart: unless-stopped
+    command: python3 bot/main.py
