@@ -15,7 +15,7 @@
 
 1. **Клонируйте репозиторий:**
 ```bash
-git clone <repository-url>
+git clone https://github.com/gra4evp/InteriorClassifier-backend.git
 cd InteriorClassifier-backend
 ```
 
@@ -26,13 +26,13 @@ cp services/python-backend/.env.example services/python-backend/.env
 # Отредактируйте файл под ваши нужды
 
 # Для бота
-cp services/telegram-bot/env.example services/telegram-bot/.env
+cp services/telegram-bot/.env.example services/telegram-bot/.env
 # Укажите токен бота и настройки
 ```
 
 3. **Запустите все сервисы:**
 ```bash
-docker-compose up -d
+docker-compose up -d --build
 ```
 
 ### Локальный запуск
@@ -62,7 +62,7 @@ python run_bot.py
 ### Настройка бота
 
 1. **Получите токен у @BotFather**
-2. **Создайте файл `.env`:**
+2. **Переименуйте файл `.env.example` в `.env` и заполните его:**
 ```env
 BOT_TOKEN=your_bot_token_here
 BACKEND_URL=http://localhost:8015
@@ -74,7 +74,7 @@ LOG_LEVEL=INFO
 
 3. **Запустите бота:**
 ```bash
-python run_bot.py
+python services/telegram-bot/bot/main.py
 ```
 
 ### Использование бота
@@ -96,11 +96,35 @@ python run_bot.py
 {
   "results": [
     {
-      "class_name": "A0",
-      "probabilities": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
-      "image_name": "interior.jpg"
+      "predicted_class": "A0",
+      "top_confidence": 0.92,
+      "class_confidences": {
+        "A0": 0.82,
+        "A1": 0.03,
+        "B0": 0.01,
+        "B1": 0.08,
+        "C0": 0.01,
+        "C1": 0.03,
+        "D0": 0.01,
+        "D1": 0.01
+      },
+      "image_name": "kitchen.jpg",
+      "error": null
+    },
+    {
+      "predicted_class": null,
+      "top_confidence": null,
+      "class_confidences": {},
+      "image_name": "broken.png",
+      "error": "File is not a supported image format. Supported formats: jpg, jpeg, png, bmp, gif, tiff, webp, ico."
     }
-  ]
+  ],
+  "meta": {
+    "total_images": 2,
+    "total_processing_time_ms": 250,
+    "model_version": "1.0.0",
+    "backbone_name": "EfficientNet-B3"
+  }
 }
 ```
 
@@ -115,7 +139,9 @@ InteriorClassifier-backend/
 │   │   │   ├── models/
 │   │   │   ├── routers/
 │   │   │   └── pydantic_models.py
-│   │   ├── Dockerfile
+│   │   ├── Dockerfile_cpu # для запуска на CPU
+│   │   ├── Dockerfile_gpu # для запуска на GPU
+│   │   ├── .env.example # замените на свой .env файл
 │   │   └── requirements.txt
 │   └── telegram-bot/            # Telegram бот
 │       ├── bot/
@@ -127,14 +153,21 @@ InteriorClassifier-backend/
 │       │   ├── keyboards/
 │       │   └── middlewares/
 │       ├── Dockerfile
-│       ├── requirements.txt
-│       └── run_bot.py
+│       ├── .env.example  # замените на свой .env файл
+│       └── requirements.txt
 ├── pictures/                    # Тестовые изображения
 ├── docker-compose.yml
+├── .env.example # замените на свой .env файл
 └── README.md
 ```
 
 ## 🛠️ Разработка
+
+### Установка зависимостей
+
+```bash
+pip install -r dev_requirements.txt
+```
 
 ### Добавление новых хендлеров в бота
 
@@ -147,23 +180,3 @@ InteriorClassifier-backend/
 1. Создайте новый роутер в `services/python-backend/app/routers/`
 2. Добавьте обработчики
 3. Зарегистрируйте в `main.py`
-
-## 📊 Логирование
-
-- Backend логи: в консоли и файлах
-- Bot логи: в `bot.log` и консоли
-- Docker логи: `docker-compose logs -f`
-
-## 🔒 Безопасность
-
-- Валидация файлов по типу и размеру
-- Ограничение частоты запросов
-- Обработка ошибок сети и API
-- Логирование всех действий
-
-## 📞 Поддержка
-
-При возникновении проблем:
-1. Проверьте логи сервисов
-2. Убедитесь, что все переменные окружения настроены
-3. Проверьте доступность бэкенда для бота
