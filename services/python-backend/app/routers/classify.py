@@ -42,12 +42,12 @@ def classify_images_batch(
         results = []
         for i in range(len(images)):
             probs = probabilities[i]
-            confidences = {CLASS_NAMES[j]: round(float(probs[j]), 6) for j in range(len(CLASS_NAMES))}
+            confidences = {CLASS_NAMES[j]: round(float(probs[j]), 4) for j in range(len(CLASS_NAMES))}
             top_confidence, predicted = torch.max(probs, 0)
             results.append(
                 ClassificationResult(
                     predicted_class=CLASS_NAMES[predicted.item()],
-                    top_confidence=round(float(top_confidence.item()), 6),
+                    top_confidence=round(float(top_confidence.item()), 4),
                     class_confidences=confidences,
                     image_name=image_names[i],
                     error=None
