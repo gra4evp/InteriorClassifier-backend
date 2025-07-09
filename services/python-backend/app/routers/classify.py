@@ -1,15 +1,16 @@
 import logging
-from pathlib import Path
 from fastapi import UploadFile, File, HTTPException, Depends
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
-from typing import List
 from datetime import datetime
-import torch
 from PIL import Image
 import io
+import torch
 from pydantic_models import ClassificationResult, ClassificationResponse, MetaInfo
-from models.interior_classifier_EfficientNet_B3 import InteriorClassifier, load_model, get_inference_transforms, get_model
+from models.interior_classifier_EfficientNet_B3 import (
+    InteriorClassifier,
+    get_inference_transforms,
+    get_model
+)
 
 
 logger = logging.getLogger(f"uvicorn.{__file__}")
@@ -33,7 +34,7 @@ def classify_images_batch(
         image_names: list[str],
         model: InteriorClassifier
     ) -> list[ClassificationResult]:
-    transforms = get_inference_transforms(img_size=380)
+    transforms = get_inference_transforms(img_size=448)
     tensors = [transforms(img).unsqueeze(0) for img in images]
     batch_tensor = torch.cat(tensors, dim=0)
     with torch.no_grad():
@@ -58,7 +59,7 @@ def classify_images_batch(
 
 @router.post("/classify_batch", response_model=ClassificationResponse)
 async def classify_batch(
-    images: List[UploadFile] = File(...),
+    images: list[UploadFile] = File(...),
     model: InteriorClassifier = Depends(get_model)
 ):
     start_time = datetime.now()
