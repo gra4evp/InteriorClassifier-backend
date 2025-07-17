@@ -177,4 +177,5 @@ cython_debug/
 # profect files
 *.env
 pictures/
+*ckpt*
 /venv*
