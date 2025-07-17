@@ -41,13 +41,26 @@ class Config:
         return True 
 
 # Глобальный объект с информацией о классах интерьера
+# norm
+# CLASS_INFO = {
+#     'A0': {'emoji': '🧱', 'description': 'Unfinished | Без отделки'},
+#     'A1': {'emoji': '◻️', 'description': 'WhiteBox | Под чистовую'},
+#     'B0': {'emoji': '🏚️', 'description': 'Major repair | Капитальный ремонт'},
+#     'B1': {'emoji': '🎨', 'description': 'Cosmetic repair | Косметический ремонт'},
+#     'C0': {'emoji': '☑️', 'description': 'Finished | Чистовая'},
+#     'C1': {'emoji': '🏠', 'description': 'Good | Хорошее состояние'},
+#     'D0': {'emoji': '✨', 'description': 'Euro-style | Евроремонт'},
+#     'D1': {'emoji': '💎', 'description': 'Luxury | Люкс'},
+# }
+
+# сringe (customer requires)
 CLASS_INFO = {
-    'A0': {'emoji': '🧱', 'description': 'Unfinished | Без отделки'},
-    'A1': {'emoji': '◻️', 'description': 'WhiteBox | Под чистовую'},
-    'B0': {'emoji': '🏚️', 'description': 'Major repair | Капитальный ремонт'},
-    'B1': {'emoji': '🎨', 'description': 'Cosmetic repair | Косметический ремонт'},
-    'C0': {'emoji': '☑️', 'description': 'Finished | Чистовая'},
-    'C1': {'emoji': '🏠', 'description': 'Good | Хорошее состояние'},
-    'D0': {'emoji': '✨', 'description': 'Euro-style | Евроремонт'},
-    'D1': {'emoji': '💎', 'description': 'Luxury | Люкс'},
+    'A0': {'emoji': '🧱', 'description': 'Без отделки'},
+    'A1': {'emoji': '◻️', 'description': 'White box (под чистовую отделку)'},
+    'B0': {'emoji': '🏚️', 'description': 'Эконом (бабушкин ремонт)'},
+    'B1': {'emoji': '🎨', 'description': 'Эконом+ (дешёвый ремонт в новостройках)'},
+    'C0': {'emoji': '☑️', 'description': 'Стандарт (нормальный средний класс)'},
+    'C1': {'emoji': '🏠', 'description': 'Стандарт+ (хороший обычный ремонт)'},
+    'D0': {'emoji': '✨', 'description': 'Евроремонт'},
+    'D1': {'emoji': '💎', 'description': 'Luxe (дизайнерский)'}
 }
